@@ -1,0 +1,96 @@
+FINISH
+/CLEAR,START
+/CONFIG,NRES,10000		!结果文件中允许的结果组（子步）的最大值数
+/UNITS,SI				!国际单位制
+/VUP,1,Z				!Z轴向“上”
+/VIEW,1,1,-1,1			!调整视角
+
+!设置分析类型
+/NOPR   
+KEYW,PR_SET,1   
+KEYW,PR_STRUC,0 
+KEYW,PR_THERM,1 	!分析类型Thermal,1表示打开
+KEYW,PR_FLUID,0 
+KEYW,PR_ELMAG,0 
+KEYW,MAGNOD,0   
+KEYW,MAGEDG,0   
+KEYW,MAGHFE,0   
+KEYW,MAGELC,0   
+KEYW,PR_MULTI,0 
+/GO 
+
+/TITLE,UNIFORM			!更改title
+/FILNAME,TEMPERATURE,0	!更改jobname,0表示不新建日志，若需新建，改为1
+
+/PREP7
+ET,1,SOLID70		!定义单元类型
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,KXX,1,,8.4   !定义导热系数
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,C,1,,710 	!定义比热容
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,DENS,1,,3700	!定义密度
+
+!参数设置
+*SET,VS,20
+*SET,AP,0.01E-3 
+*SET,VW,14/60 
+*SET,B,0.015
+*SET,FT,14   
+*SET,RW,0.9
+*SET,DS,0.18
+*SET,LC,SQRT(AP*DS) 
+*SET,QW,RW*FT*VS/(B*LC) 
+*SET,ESIZE,0.035/160
+
+BLOCK,-0.0075,0.0075,0,0.035,-0.01,0	!建实体模型
+
+!划分网格
+LESIZE,6,,,160
+LESIZE,7,,,20
+LESIZE,9,,,12,10
+LESIZE,10,,,12,0.1
+LESIZE,11,,,12,0.1
+LESIZE,12,,,12,10
+TYPE,1				!设置单元类型属性
+REAL,1				!单元实常数属性指示器
+MSHKEY,1			!选择采用网格划分方式：自由划分(2)/映射划分(1)
+VATT,1,1,1			!给所选择的体设置划分网格单元属性
+VMESH,1				!划分网络
+SAVE
+
+/SOL				!进入求解器 
+!指定分析类型为瞬态分析
+ANTYPE,4			  
+TRNOPT,FULL 
+LUMPM,0	
+
+!输出控制Write vevery Nth substep
+OUTRES,ERASE	!ERASE:恢复默认设置
+OUTRES,ALL,1
+		
+TUNIF,25,		!指定环境温度
+
+!加载循环载荷并求解
+*DO,I,1,160,1
+LOCAL,11,0,0,(I-1)*ESIZE,0,0,0,0,,,
+ASEL,S,,,2
+NSLA,S,1
+SFDELE,ALL,HFLUX
+ALLSEL
+NSEL,S,LOC,Z,0
+NSEL,R,LOC,X,-0.0075,0.0075
+NSEL,R,LOC,Y,0,LC
+SF,ALL,HFLUX,QW
+ALLSEL
+T=I*ESIZE/VW
+TIME,T
+TIMINT,ON
+DELTIM,0.002,0.002,0.004
+AUTOTS,ON
+SOLVE
+*ENDDO
+FINISH
